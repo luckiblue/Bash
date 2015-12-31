@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# Ten skrypt tworzy kopie podanego przez uzytkownika folderu.
+# W folderze moga byc tylko pliki o podanych nizej rozszerzeniach.
+# Inne rozszerzenia zostana pominiete w procesie tworzenia Backup'u.
+# Skrypt nie kopiuje podfolderow podanego folderu.
+
+# Tablica obslugiwanych rozszerzen plikow
+
+fs=(.odt .ott .txt .ods .ots .xls .xlsx .html .css .csv .odp .pptx .ppt .pdf .php .js .doc .docx .jpg .png .gif .jpeg .avi .mp4 .wmv .mp3 .mpeg3 .wav .wave .mid .wma)
+time=$(date '+%d-%m-%Y_%H')
+
+# Kasowanie plikow i folderow utworzonych wczesniej przez ten skrypt
+
+if [ -d ~/$1/Error.err ]
+then
+	rm ~/$1/Error.err 2>/dev/null
+fi
+if [ -d ~/$1/Info.txt ]
+then
+	rm ~/$1/Info.txt 2>/dev/null
+fi
+if [ -d ~/$1/Backup.tar.gz ]
+then
+	rm -rf ~/$1/Backup.tar.gz 2>/dev/null
+fi
+if [ -d ~/$1/Backup.tar.bz2 ]
+then
+	rm -rf ~/$1/Backup.tar.bz2 2>/dev/null
+fi
+if [ -d ~/$1/Backup_$time ]
+then
+	rm -rf ~/$1/Backup_$time 2>/dev/null
+fi
+if [ -d /media/$USER/BACKUP/Backup_$time ]
+then
+	rm -rf /media/$USER/BACKUP/Backup_$time
+fi
+
+mkdir ~/$1/Backup_temp 2>/dev/null
+
+# Przeszukiwanie lokalizacji zeby znalezc pliki o obslugiwanych rozszerzeniach
+
+for i in `ls ~/$1`
+do
+	filename=$(basename "$i")
+	extension="${filename##*.}"
+	if [[ "${fs[*]}" == *".${extension}"* ]]
+	then
+		mv ~/$1/Backup_temp
+	else
+		echo "$extension - Rozszerzenia nie ma w bazie! | $time" >> ~/$1/Error.err
+	fi
+	let "y+=1"
+done
+size=0
+size=$(stat --printf="%s" ~/$1/Backup_temp)
+echo "Rozmiar pliku Backup to $size B. | $time" >> ~/$1/Backup_temp/Info.txt
+
+# Tworzenie archiwum w zaleznosci od rozmiaru plikow
+
+if [ 50000000 -ge $size ]
+then
+	echo "Tworze plik tar.gz"
+	tar -cvzf ~/$1/Backup_$time.tar.gz ~/$1/Backup_temp
+	mkdir ~/$1/Backup_$time
+	mv ~/$1/Backup_$time.tar.gz ~/$1/Backup_$time
+else
+	echo "Tworze plik tar.bz2"
+	tar -cvjSf ~/$1/Backup_$time.tar.bz2 ~/$1/Backup_temp
+	mkdir ~/$1/Backup_$time
+	mv ~/$1/Backup_$time.tar.bz2 ~/$1/Backup_$time
+fi
+rm -rf ~/$1/Backup_temp
+
+# Jesli jest to mozliwe, przeniesienie archiwum na pendrive o nazwie BACKUP, jak nie to zostawienie w lokalizacji poczatkowej
+
+if [ -d "/media/$USER/BACKUP" ]
+then
+	echo "Przenosze folder BACKUP na dysk USB..."
+	mv ~/$1/Backup_$time /media/$USER/BACKUP
+	echo "Zakonczono powodzeniem!"
+else
+	echo "Brak urzadzenia USB do zaspiu, plik Backup znajduje sie w" ~/$1/
+fi
